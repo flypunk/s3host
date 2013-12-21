@@ -79,11 +79,7 @@ def add_apex_alias(r53_conn, zone):
                             alias_dns_name=us_east_1_website_endpoint)
     try:
         response = rrs.commit()
-        if response['ChangeResourceRecordSetsResponse']['ChangeInfo']['Status'] == 'PENDING':
-            return True
-        else:
-            print(response)
-            return response
+        return response
     except boto.route53.exception.DNSServerError, e:
         return e
 
@@ -96,11 +92,7 @@ def add_cname_alias(r53_conn, zone_id, bucket_name, bucket_endpoint):
     change.add_value(bucket_endpoint)
     try:
         response = rrs.commit()
-        if response['ChangeResourceRecordSetsResponse']['ChangeInfo']['Status'] == 'PENDING':
-            return True
-        else:
-            print(response)
-            return response
+        return response
     except boto.route53.exception.DNSServerError, e:
         return e
  
