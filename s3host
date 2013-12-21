@@ -20,7 +20,7 @@ def parse_args():
     parser.add_argument('domain')
     return parser.parse_args()
 
-def sort_dns_name(dns_name):
+def get_record_type(dns_name):
     '''
     Sorts the name it gets to 1 of 3 types: invalid, apex, normal.
     We split the trailing dot before making the decision.
@@ -99,7 +99,7 @@ def add_cname_alias(r53_conn, zone_id, bucket_name, bucket_endpoint):
 
 if __name__ == '__main__':
     args = parse_args()
-    dns_type = sort_dns_name(args.domain)
+    dns_type = get_record_type(args.domain)
     if not dns_type:
         print('invalid domain name %s' % args.domain)
         sys.exit(1)
