@@ -50,11 +50,11 @@ def create_bucket(s3_conn, domain):
         sys.exit(1)
 
     k = boto.s3.key.Key(bucket)
-    k.key = 'index.htm'
+    k.key = 'index.html'
     k.set_contents_from_string('<h1>Epic Win!</h1>\n')
     k.set_acl('public-read')
     bucket.set_acl('public-read')
-    bucket.configure_website('index.htm')
+    bucket.configure_website('index.html')
     return bucket
 
 def create_zone(r53_conn, domain):
