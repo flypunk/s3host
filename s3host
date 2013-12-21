@@ -1,0 +1,78 @@
+#!/usr/bin/env python
+
+import sys
+import argparse
+
+import boto
+
+# From http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
+us_east_1_website_hosted_zone = 'Z3AQBSTGFYJSTF'
+us_east_1_website_endpoint = 's3-website-us-east-1.amazonaws.com.'
+
+wrong_alias_error = ''' DNSServerError: 400 Bad Request
+<?xml version="1.0"?>
+<ErrorResponse xmlns="https://route53.amazonaws.com/doc/2012-02-29/"><Error><Type>Sender</Type><Code>InvalidChangeBatch</Code><Message>Tried to create an alias that targets YOUR_DOMAIN, type A in zone HOSTED_ZONE_ID, but the alias target name does not lie within the target zone</Message></Error><RequestId>1f140de0-6a51-11e3-8db4-2b67aa94f445</RequestId></ErrorResponse>
+'''
+
+def parse_args():
+    description = 'Configure S3 and Route53 to host a static website on your domain'
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('domain')
+    return parser.parse_args()
+
+def create_bucket(s3_conn, domain):
+    '''Create a bucket, configure it as a website and make it publicly readable'''
+    try:
+        bucket = s3_conn.create_bucket(domain)
+    except boto.exception.S3CreateError, e:
+        print('Error while creating bucket %s: %s') % (domain, e)
+        sys.exit(1)
+
+    k = boto.s3.key.Key(bucket)
+    k.key = 'index.htm'
+    k.set_contents_from_string('<h1>Epic Win!</h1>\n')
+    k.set_acl('public-read')
+    bucket.set_acl('public-read')
+    bucket.configure_website('index.htm')
+    return bucket
+
+def create_zone(r53_conn, domain):
+    try:
+        zone = r53_conn.create_zone(domain)
+        return zone
+    except  boto.route53.exception.DNSServerError, e:
+        print('Error creating zone %s' % domain)
+        print(e)
+        sys.exit(1)
+
+def add_apex_alias(r53_conn, zone):
+    rrs = boto.route53.record.ResourceRecordSets(r53_conn, zone.id)
+    change = rrs.add_change(action='CREATE',
+                            name=zone.name,
+                            type='A',
+                            alias_hosted_zone_id=us_east_1_website_hosted_zone,
+                            alias_dns_name=us_east_1_website_endpoint)
+    try:
+        response = rrs.commit()
+        if response['ChangeResourceRecordSetsResponse']['ChangeInfo']['Status'] == 'PENDING':
+            return True
+        else:
+            print(response)
+            return response
+    except boto.route53.exception.DNSServerError, e:
+        return e
+    
+if __name__ == '__main__':
+    args = parse_args()
+    s3_conn = boto.connect_s3()
+    r53_conn = boto.connect_route53()
+    print('Creating S3 bucket %s...' % args.domain)
+    create_bucket(s3_conn, args.domain)
+    print('Creating Route 53 zone %s...' % args.domain)
+    zone = create_zone(r53_conn, args.domain)
+    nameservers = '\n'.join(zone.get_nameservers())
+    print('Zone created successfully. Update your name servers to these:')
+    print(nameservers)
+    print('Making the A record of your zone point to its S3 bucket...')
+    create_alias_response = add_apex_alias(r53_conn, zone)
+        
