@@ -20,6 +20,27 @@ def parse_args():
     parser.add_argument('domain')
     return parser.parse_args()
 
+def sort_dns_name(dns_name):
+    '''
+    Sorts the name it gets to 1 of 3 types: invalid, apex, normal.
+    We split the trailing dot before making the decision.
+    '''
+    if dns_name.endswith('.'):
+        dns_name = dns_name[:-1]
+    levels = len(dns_name.split('.'))
+    if levels  < 2:
+        return False
+    elif levels == 2:
+        return 'apex'
+    else:
+        return 'cname'
+
+def get_domain_apex(domain):
+    '''Return the apex name, strip trailing dot for easier processing.'''
+    if domain.endswith('.'):
+        domain = domain[:-1]
+    return '.'.join(domain.split('.')[-2:])
+
 def create_bucket(s3_conn, domain):
     '''Create a bucket, configure it as a website and make it publicly readable'''
     try:
@@ -37,10 +58,14 @@ def create_bucket(s3_conn, domain):
     return bucket
 
 def create_zone(r53_conn, domain):
+    print('Creating Route 53 zone %s...' % domain)
     try:
         zone = r53_conn.create_zone(domain)
+        nameservers = '\n'.join(zone.get_nameservers())
+        print('Zone created successfully. Update your name servers to these:')
+        print(nameservers)
         return zone
-    except  boto.route53.exception.DNSServerError, e:
+    except boto.route53.exception.DNSServerError, e:
         print('Error creating zone %s' % domain)
         print(e)
         sys.exit(1)
@@ -61,18 +86,45 @@ def add_apex_alias(r53_conn, zone):
             return response
     except boto.route53.exception.DNSServerError, e:
         return e
-    
+
+def add_cname_alias(r53_conn, zone_id, bucket_name, bucket_endpoint):
+    rrs = boto.route53.record.ResourceRecordSets(r53_conn, zone_id)
+    change = rrs.add_change(action='CREATE',
+                            name=bucket_name,
+                            type='CNAME',
+                            ttl=60)
+    change.add_value(bucket_endpoint)
+    try:
+        response = rrs.commit()
+        if response['ChangeResourceRecordSetsResponse']['ChangeInfo']['Status'] == 'PENDING':
+            return True
+        else:
+            print(response)
+            return response
+    except boto.route53.exception.DNSServerError, e:
+        return e
+ 
+
 if __name__ == '__main__':
     args = parse_args()
+    dns_type = sort_dns_name(args.domain)
+    if not dns_type:
+        print('invalid domain name %s' % args.domain)
+        sys.exit(1)
     s3_conn = boto.connect_s3()
     r53_conn = boto.connect_route53()
+
+    zone_name = get_domain_apex(args.domain)
+    zone = r53_conn.get_zone(zone_name)
+    if not zone:
+        zone = create_zone(r53_conn, zone_name)        
     print('Creating S3 bucket %s...' % args.domain)
-    create_bucket(s3_conn, args.domain)
-    print('Creating Route 53 zone %s...' % args.domain)
-    zone = create_zone(r53_conn, args.domain)
-    nameservers = '\n'.join(zone.get_nameservers())
-    print('Zone created successfully. Update your name servers to these:')
-    print(nameservers)
-    print('Making the A record of your zone point to its S3 bucket...')
-    create_alias_response = add_apex_alias(r53_conn, zone)
+    bucket = create_bucket(s3_conn, args.domain)
+    if dns_type == 'apex':
+        print('Making the A record of your zone apex point to its S3 bucket...')
+        create_alias_response = add_apex_alias(r53_conn, zone)
+    else:
+        bucket_endpoint = bucket.get_website_endpoint()
+        print('Creating CNAME pointing from %s to %s...' % (args.domain, bucket_endpoint))
+        add_cname_alias(r53_conn, zone.id, args.domain, bucket_endpoint)
         
