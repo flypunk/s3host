@@ -1,9 +1,9 @@
 # A utility that configures S3 and Route53 to host a static website on your domain.
 
 ## Features:  
+* Supports [Root Domain Website Hosting](http://aws.typepad.com/aws/2012/12/root-domain-website-hosting-for-amazon-s3.html)!
 * Creates a bucket and a route53 record that points to it
 * Takes care of creating new hosted zone if needed
-* Supports [Root Domain Website Hosting](http://aws.typepad.com/aws/2012/12/root-domain-website-hosting-for-amazon-s3.html)
 
 ## Requirements:
 Any system with python and pip (Tested on Ubuntu 13.10 Desktop).    
