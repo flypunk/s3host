@@ -45,7 +45,7 @@ def get_domain_apex(domain):
 def create_bucket(s3_conn, domain, retries=10):
     '''Create a bucket, configure it as a website and make it publicly readable'''
     if domain.startswith('www.'):
-        print('Sorry, bucket names starting with www. are not supported - exiting.)
+        print('Sorry, bucket names starting with www. are not supported - exiting.')
         sys.exit(1)
     try:
         bucket = s3_conn.create_bucket(domain)
