@@ -7,7 +7,7 @@
 * Bucket names starting with www. are not supported due to HTTP 409 - A conflicting conditional operation is currently in progress
 
 ## Requirements:
-Any system with python and pip (Tested on Ubuntu 13.10 Desktop).    
+Any system with python and pip (Tested on Ubuntu Desktop 13.10 and 14.04).
 
 The boto credentials have to be [discoverable](http://boto.readthedocs.org/en/latest/getting_started.html) via environment variables, ~/.boto file or IAM role.
 
