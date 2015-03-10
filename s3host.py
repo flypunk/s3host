@@ -5,6 +5,7 @@ import time
 import argparse
 
 import boto
+from boto.s3.connection import ProtocolIndependentOrdinaryCallingFormat
 
 # From http://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region
 us_east_1_website_hosted_zone = 'Z3AQBSTGFYJSTF'
@@ -118,7 +119,8 @@ if __name__ == '__main__':
     if not dns_type:
         print('invalid domain name %s' % args.domain)
         sys.exit(1)
-    s3_conn = boto.connect_s3()
+    s3_conn = boto.connect_s3(calling_format=ProtocolIndependentOrdinaryCallingFormat())
+    # Using a custom calling format to avoid HTTPS bug - https://github.com/boto/boto/issues/421
     r53_conn = boto.connect_route53()
 
     zone_name = get_domain_apex(args.domain)
