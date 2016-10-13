@@ -67,7 +67,15 @@ def create_bucket(s3_conn, domain, retries=10):
 
     k = boto.s3.key.Key(bucket)
     k.key = 'index.html'
-    k.set_contents_from_string('<h1>Epic Win!</h1>\n')
+    k.set_contents_from_string(
+    '''<html>
+      <head>
+        <title>Epic Win!</title>
+      </head>
+      <body>
+        <h1>Epic Win!</h1>
+      </body>
+      </html>\n''', headers={'Content-Type': 'text/html'})
     k.set_acl('public-read')
     bucket.set_acl('public-read')
     bucket.configure_website('index.html')
